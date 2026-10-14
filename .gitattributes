@@ -1,0 +1,11 @@
+# Normalise text to LF in the repository; check out native on Windows.
+* text=auto
+
+*.py   text diff=python
+*.md   text diff=markdown
+*.toml text
+*.yml  text
+*.csv  text
+
+*.png  binary
+*.pdf  binary

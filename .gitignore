@@ -1,0 +1,33 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.eggs/
+
+.venv/
+venv/
+env/
+
+.pytest_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Generated analysis artefacts. Figures that ship with the README live in
+# docs/screenshots/ and are committed on purpose.
+outputs/
+*.pdf
+!docs/**/*.pdf
+
+# Never commit client data. Only synthetic or explicitly anonymised extracts
+# belong in examples/.
+data/raw/
+data/private/
+*.xlsx

@@ -1,0 +1,61 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "impactlens"
+version = "0.1.0"
+description = "Did the intervention actually work? Causal impact measurement with honest uncertainty intervals."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Yusuf Adin" }]
+keywords = [
+    "causal-inference",
+    "difference-in-differences",
+    "synthetic-control",
+    "interrupted-time-series",
+    "impact-evaluation",
+    "bayesian",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+]
+dependencies = [
+    "numpy>=1.24",
+    "pandas>=2.0",
+    "scipy>=1.10",
+    "statsmodels>=0.14",
+    "matplotlib>=3.7",
+]
+
+[project.optional-dependencies]
+app = ["streamlit>=1.50"]
+dev = ["pytest>=7.4", "pytest-cov>=4.1", "ruff>=0.5"]
+
+[project.scripts]
+impactlens = "impactlens.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/EthYusuf/impactlens"
+Issues = "https://github.com/EthYusuf/impactlens/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+filterwarnings = ["ignore::FutureWarning", "ignore::DeprecationWarning"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = ["E501"]
