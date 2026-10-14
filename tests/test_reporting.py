@@ -81,8 +81,44 @@ def test_comparison_note_calls_out_the_naive_inflation(ds):
     assert "naive before/after" in note
 
 
+def test_comparison_note_counts_only_control_based_methods(ds):
+    """ITS has no control group, so it must not be described as control-based.
+
+    Letting it vote on whether the confound was handled would be exactly the
+    overstatement this project exists to prevent.
+    """
+    results = run_all(ds)
+    assert "its" in results, "the fixture should produce an ITS estimate"
+    n_controlled = sum(
+        1 for e in results.values() if e.diagnostics.get("n_controls_used", 0) > 0
+    )
+    assert n_controlled == 3, "did, synthetic_control and bayesian use controls"
+    note = narrative.comparison_note(results)
+    assert "All 3 control-based methods" in note
+    assert "All 4 control-based" not in note
+    # And ITS is named as a no-control method sitting above the consensus.
+    assert "Interrupted Time Series" in note
+    assert "no control group" in note
+
+
+def test_comparison_note_spread_ignores_the_no_control_outlier(ds):
+    """The agreement claim must be about the control-based spread alone."""
+    results = run_all(ds)
+    controlled = [
+        e.effect for e in results.values() if e.diagnostics.get("n_controls_used", 0) > 0
+    ]
+    all_effects = [e.effect for e in results.values()]
+    controlled_spread = max(controlled) - min(controlled)
+    overall_spread = max(all_effects) - min(all_effects)
+    assert overall_spread > 3 * controlled_spread, (
+        "the no-control estimators should be far outside the control-based cluster"
+    )
+    note = narrative.comparison_note(results)
+    assert f"({controlled_spread:,.1f})" in note
+
+
 def test_comparison_note_flags_disagreement_between_methods(est):
-    """Build two estimates pointing opposite ways and check the wording."""
+    """Build two control-based estimates pointing opposite ways."""
     up = est
     down = ImpactEstimate(
         method="Fabricated downward estimate",
@@ -90,6 +126,7 @@ def test_comparison_note_flags_disagreement_between_methods(est):
         interval=Interval(-80.0, -20.0),
         n_pre=est.n_pre,
         n_post=est.n_post,
+        diagnostics={"n_controls_used": 5},
     )
     note = narrative.comparison_note({"a": up, "b": down})
     assert "disagree" in note
@@ -98,6 +135,13 @@ def test_comparison_note_flags_disagreement_between_methods(est):
 
 def test_comparison_note_is_silent_with_a_single_method(est):
     assert narrative.comparison_note({"synthetic_control": est}) == ""
+
+
+def test_comparison_note_is_silent_without_control_based_methods(no_control_ds):
+    """Nothing to compare when no estimate saw a control unit."""
+    results = run_all(no_control_ds)
+    assert all(e.diagnostics.get("n_controls_used", 0) == 0 for e in results.values())
+    assert narrative.comparison_note(results) == ""
 
 
 # ---------------------------------------------------------------------- types

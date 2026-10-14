@@ -297,6 +297,7 @@ def estimate_did(
         diagnostics={
             "std_error": se,
             "n_clusters": int(n_clusters),
+            "n_controls_used": int(n_clusters - 1),
             "n_obs": int(len(y)),
             "r_squared": float(model.rsquared),
             "inference": "wild cluster bootstrap" if use_boot else "cluster-robust (by unit)",

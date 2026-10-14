@@ -138,60 +138,96 @@ def assumption_block(est: ImpactEstimate) -> list[str]:
     return list(est.assumptions)
 
 
+def _uses_controls(est: ImpactEstimate) -> bool:
+    """Did this estimate actually compare against control units?
+
+    Read from the estimate rather than from its name, because the Bayesian
+    counterfactual is control-based only when control series were supplied. An
+    estimator that never saw a control unit must not be described as one -- that
+    is the specific overstatement this module exists to prevent.
+    """
+    return int(est.diagnostics.get("n_controls_used", 0)) > 0
+
+
 def comparison_note(estimates: dict[str, ImpactEstimate]) -> str:
     """How much of the headline depends on the modelling choice.
 
-    Compares the credible/confidence estimates against each other, and separately
-    against the naive benchmark, which is the number a business would otherwise
-    have reported.
+    Agreement is assessed **only among the estimates that used control units**.
+    Interrupted time series and the naive comparison are grouped together as
+    no-control readings and reported separately: lumping them in would let a
+    method that cannot see the confound vote on whether the confound was handled.
     """
-    serious = {k: v for k, v in estimates.items() if k != "naive"}
-    if len(serious) < 2:
+    controlled = {k: v for k, v in estimates.items() if _uses_controls(v)}
+    uncontrolled = {k: v for k, v in estimates.items() if not _uses_controls(v)}
+    if len(controlled) < 2:
         return ""
 
-    effects = np.array([e.effect for e in serious.values()], dtype=float)
+    effects = np.array([e.effect for e in controlled.values()], dtype=float)
     spread = float(effects.max() - effects.min())
-    widest = max(e.interval.width for e in serious.values())
-    agree = len({e.direction for e in serious.values()}) == 1
+    widest = max(e.interval.width for e in controlled.values())
+    agree = len({e.direction for e in controlled.values()}) == 1
 
     lines: list[str] = []
     if agree and spread <= 0.5 * widest:
         lines.append(
-            f"All {len(serious)} control-based methods agree in direction, and the spread "
-            f"between their point estimates ({_fmt(spread)}) is small relative to their own "
-            f"uncertainty. The conclusion is not an artefact of one modelling choice."
+            f"All {len(controlled)} control-based methods agree in direction, and the "
+            f"spread between their point estimates ({_fmt(spread)}) is small relative to "
+            f"their own uncertainty. The conclusion is not an artefact of one modelling "
+            f"choice."
         )
     elif agree:
         lines.append(
-            f"The methods agree in direction but their point estimates differ by "
-            f"{_fmt(spread)}, which is comparable to their uncertainty intervals. Treat "
-            f"the direction as the finding and the magnitude as approximate."
+            f"The control-based methods agree in direction but their point estimates "
+            f"differ by {_fmt(spread)}, which is comparable to their uncertainty "
+            f"intervals. Treat the direction as the finding and the magnitude as "
+            f"approximate."
         )
     else:
         lines.append(
-            "The methods disagree on direction. That is a red flag: the result depends on "
-            "the modelling assumptions rather than on the data. Do not report a single "
-            "headline number until the disagreement is understood."
+            "The control-based methods disagree on direction. That is a red flag: the "
+            "result depends on the modelling assumptions rather than on the data. Do not "
+            "report a single headline number until the disagreement is understood."
         )
 
-    naive = estimates.get("naive")
-    if naive is not None:
-        best = next(iter(serious.values()))
-        gap = naive.effect - best.effect
-        if abs(best.effect) > 1e-9:
-            factor = naive.effect / best.effect
-            if np.isfinite(factor) and factor > 1.15:
-                lines.append(
-                    f"The naive before/after comparison reports {_fmt(naive.effect)} per "
-                    f"period -- {factor:.1f}x the control-based estimate of "
-                    f"{_fmt(best.effect)}. The extra {_fmt(gap)} is movement the control "
-                    f"units experienced too, so it was never attributable to the "
-                    f"intervention."
-                )
-            elif np.isfinite(factor) and 0 < factor < 0.85:
-                lines.append(
-                    f"The naive before/after comparison understates the effect, reporting "
-                    f"{_fmt(naive.effect)} against the control-based "
-                    f"{_fmt(best.effect)}. A declining market masked part of the gain."
-                )
+    # Consensus of the control-based estimates: the median is used rather than
+    # the first, so the comparison below does not depend on dict ordering.
+    consensus = float(np.median(effects))
+
+    if uncontrolled and abs(consensus) > 1e-9:
+        gaps = {
+            k: v.effect - consensus
+            for k, v in uncontrolled.items()
+            if np.isfinite(v.effect)
+        }
+        overstating = {k: g for k, g in gaps.items() if g > 0.15 * abs(consensus)}
+        understating = {k: g for k, g in gaps.items() if g < -0.15 * abs(consensus)}
+
+        naive = estimates.get("naive")
+        if naive is not None and "naive" in overstating:
+            factor = naive.effect / consensus
+            lines.append(
+                f"The naive before/after comparison reports {_fmt(naive.effect)} per "
+                f"period -- {factor:.1f}x the control-based estimate of "
+                f"{_fmt(consensus)}. The extra {_fmt(overstating['naive'])} is movement "
+                f"the control units experienced too, so it was never attributable to the "
+                f"intervention."
+            )
+        elif naive is not None and "naive" in understating:
+            lines.append(
+                f"The naive before/after comparison understates the effect, reporting "
+                f"{_fmt(naive.effect)} against the control-based {_fmt(consensus)}. A "
+                f"declining market masked part of the gain."
+            )
+
+        others = [k for k in overstating if k != "naive"]
+        if others:
+            names = ", ".join(estimates[k].method for k in others)
+            worst = max(overstating[k] for k in others)
+            lines.append(
+                f"{names} also sits above the control-based estimate, by up to "
+                f"{_fmt(worst)} per period. That method has no control group, so it "
+                f"cannot separate the intervention from anything else that changed at "
+                f"the same time -- the excess is the measure of what a control group buys "
+                f"you."
+            )
     return " ".join(lines)

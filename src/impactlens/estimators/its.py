@@ -184,6 +184,10 @@ def estimate_its(
             "pre_trend": float(beta[names.index("time")]),
             "r_squared": float(model.rsquared),
             "durbin_watson": dw,
+            # Zero by construction: this estimator reads the treated series
+            # alone. Downstream reporting uses this to avoid describing it as a
+            # control-based method.
+            "n_controls_used": 0,
             "hac_lags": int(hac_lags),
             "std_error": se,
             "inference": f"Newey-West HAC (lags={hac_lags})",

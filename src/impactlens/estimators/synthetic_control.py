@@ -285,6 +285,7 @@ def estimate_synthetic_control(
             "rmspe_ratio": float(fit["ratio"]),
             "pre_fit_ratio": fit_quality,
             "n_donors": int(donors.shape[1]),
+            "n_controls_used": int(donors.shape[1]),
             "n_effective_donors": effective_donors,
             "placebo_effects": pd.Series(placebo_effects, index=placebo_units, name="effect")
             if placebo_units

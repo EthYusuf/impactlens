@@ -84,6 +84,7 @@ def estimate_naive_prepost(ds: PanelDataset, *, level: float = 0.95) -> ImpactEs
         diagnostics={
             "pre_mean": float(pre.mean()),
             "post_mean": float(post.mean()),
+            "n_controls_used": 0,
             "std_error": se,
             "inference": "Welch two-sample t",
         },
