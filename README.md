@@ -6,11 +6,11 @@
 
 **A causal impact measurement toolkit that separates what you caused from what would have happened anyway — and reports the answer as a range, not a point.**
 
-[![CI](https://github.com/EthYusuf/impactlens/actions/workflows/ci.yml/badge.svg)](https://github.com/EthYusuf/impactlens/actions/workflows/ci.yml)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-1b3a5c.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-c2653b.svg)](LICENSE)
 [![Tests](https://img.shields.io/badge/tests-118%20passing-2b7a6f.svg)](tests/)
 [![Interval coverage](https://img.shields.io/badge/validated-interval%20coverage%2093.6%25-2b7a6f.svg)](#does-the-tool-actually-work)
+[![Ruff](https://img.shields.io/badge/lint-ruff%20clean-c2653b.svg)](pyproject.toml)
 
 </div>
 
@@ -425,17 +425,34 @@ README cannot drift away from the code that produced it.
 
 ## Development
 
+The four checks that gate a change, in the order CI runs them:
+
 ```bash
 pip install -e ".[dev,app]"
-pytest                    # 118 tests
-ruff check .
-impactlens validate -n 60 --csv-out validation.csv
-python scripts/assert_calibration.py validation.csv
+
+ruff check .                                        # lint
+pytest                                              # 118 tests
+impactlens validate -n 60 --csv-out validation.csv  # recovery study
+python scripts/assert_calibration.py validation.csv # coverage gate
 ```
 
-CI runs the test suite on Python 3.10–3.13, lints, runs the recovery study, and
-**fails the build if interval coverage regresses**. A change that quietly
-narrowed the intervals would pass every unit test — that gate is what catches it.
+The last one is the important gate. A change that quietly narrowed the
+intervals would pass every unit test and still make the tool overconfident, so
+`assert_calibration.py` re-reads the recovery study and fails if coverage for
+any control-based estimator drops below 0.85 — or if the naive benchmark
+*stops* failing, which would mean the simulation's confound has broken and the
+whole comparison is meaningless.
+
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs all four across
+Python 3.10–3.13, plus a smoke test of the CLI and the dashboard.
+
+> [!NOTE]
+> The workflow is currently set to **manual trigger only**. GitHub Actions is
+> unavailable on this account for billing reasons, so automatic runs are
+> cancelled before a runner is assigned — which says nothing about the code but
+> would mark every commit with a red cross. Re-enabling automatic runs is two
+> uncommented lines at the top of the workflow file. Until then the checks above
+> are the source of truth and are run locally before every commit.
 
 ---
 

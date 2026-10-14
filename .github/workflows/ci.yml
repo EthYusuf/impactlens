@@ -1,9 +1,22 @@
 name: CI
 
+# Manual trigger only, for now.
+#
+# GitHub Actions is currently unavailable on this account ("the job was not
+# started because your account is locked due to a billing issue"), so every
+# automatic run is cancelled before a runner is assigned. Those cancellations
+# are not test failures -- they say nothing about the code -- but they would
+# mark every commit with a red cross, which is worse than no signal at all.
+#
+# To restore automatic runs once Actions is available again, delete this
+# comment and uncomment the two triggers below:
+#
+#   push:
+#     branches: [main]
+#   pull_request:
+#
+# Until then, run the same checks locally -- see "Development" in the README.
 on:
-  push:
-    branches: [main]
-  pull_request:
   workflow_dispatch:
 
 concurrency:

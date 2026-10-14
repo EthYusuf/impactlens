@@ -24,7 +24,11 @@ impactlens validate -n 60 --csv-out validation.csv
 python scripts/assert_calibration.py validation.csv
 ```
 
-CI runs all four. The calibration gate is the important one — see below.
+All four are what the CI workflow runs. Note that the workflow is currently set
+to manual trigger only (GitHub Actions is unavailable on this account for
+billing reasons), so **run them locally before every commit** — they are the
+source of truth, not a formality. The calibration gate is the important one; see
+below.
 
 ## Touching an estimator
 
